@@ -2,6 +2,8 @@
 Installing nixos with `justdoit`.
 @cleverca22 came up with all of this, wrote the justdoit.nix file, and showed me how to use it.
 This repo is just a condensed version with some documentation showing others how to use it.
+Users of this should know that it is extremely unsafe and it is possible to
+brick the target system.
 
 ## The Goal
 - Install NixOS with `justdoit`, a convenience script that takes care of a lot
@@ -28,7 +30,10 @@ Edit configuration.nix to your liking. Necessary things:
 4. Configure `kexec.justdoit`. See justdoit.nix for available options.
    This will require knowing things about the target system, most of which
    you can find out via `fdisk -l`.
-
+5. importing `autoreboot.nix` is not necessary, HOWEVER, it is a useful safety
+   net. If the network isn't working on kexec, it will be impossible to recover
+   the machine. Autoreboot will reboot automatically at the end of each hour. It
+   needs to be stopped immediately before executing `justdoit`.
 See the example provided configuration.nix for reference.
 
 ### Configure the target config
@@ -48,5 +53,35 @@ $ nix build '.#nixosConfigurations.nike.config.system.build.kexec_tarball' -j4
 
 ### Deploy the tarball to the target machine and install NixOS
 ```
-TODO
+[chessai@source-nixos:~/nike]$ nix build '.#nixosConfigurations.nike.config.system.build.kexec_tarball' -j4
+[chessai@source-nixos:~/nike]$ export TARGET_IP=<some_ip>
+[chessai@source-nixos:~/nike]$ scp result/tarball/nixos-system-x86_64-linux.tar.xz $TARGET_IP:.
+[chessai@source-nixos:~/nike]$ ssh $TARGET_IP
+
+[chessai@target-ubuntu:~]$ sudo -i
+[sudo] password for chessai:
+[root@target-ubuntu:~]# cd /
+[root@target-ubuntu:/]# tar -xf /home/chessai/nixos-system-x86_64-linux.tar.xz
+[root@target-ubuntu:/]# ./kexec_nixos
+executing kernel, filesystems will be improperly unmounted
+Connection to $TARGET_IP closed.
+
+[chessai@source-nixos:~/nike]$ ping $TARGET_IP
+PING $TARGET_IP ($TARGET_IP) 56(84) bytes of data.
+64 bytes from $TARGET_IP: icmp_seq=1 ttl=64 time=0.197 ms
+64 bytes from $TARGET_IP: icmp_seq=2 ttl=64 time=0.121 ms
+64 bytes from $TARGET_IP: icmp_seq=3 ttl=64 time=0.181 ms
+^C
+[chessai@source-nixos:~/nike]$ ssh root@$TARGET_IP
+The authenticity of host '$TARGET_IP ($TARGET_IP)' can't be established.
+ED25519 key fingerprint is SHA256:o1Tl49CuK6Ipd5gT6GaNfotsgVMJcdxr2FZbGrmhqmE.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '$TARGET_IP' (ED25519) to the list of known hosts.
+Last login: Fri Dec  9 05:47:11 2016
+
+[root@kexec:~]# wpa_passphrase $SSID $PASSWORD >> /etc/wpa_supplicant.conf
+[root@kexec:~]# systemctl restart wpa_supplicant.service
+[root@kexec:~]# systemctl stop autoreboot.timer
+[root@kexec:~]# justdoit
+[root@kexec:~]# shutdown -r now
 ```
