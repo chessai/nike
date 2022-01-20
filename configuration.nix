@@ -5,7 +5,10 @@
     (modulesPath + "/installer/netboot/netboot-minimal.nix")
     ./kexec.nix
     ./justdoit.nix
+    ./autoreboot.nix
   ];
+
+  kexec.autoReboot = true;
 
   kexec.justdoit = {
     rootDevice = "/dev/nvme0n1";
@@ -21,7 +24,8 @@
     wireless = {
       enable = true;
       # empty set means "use /etc/wpa_supplicant.conf"
-      networks = { };
+      networks = {
+      };
     };
   };
 
